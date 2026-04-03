@@ -486,7 +486,7 @@ out:
   g_dbus_method_invocation_return_error_literal (invocation, XDG_DESKTOP_PORTAL_ERROR,
                                                  XDG_DESKTOP_PORTAL_ERROR_NOT_FOUND,
                                                  "Requested setting not found");
-  return FALSE;
+  return TRUE;
 }
 
 static gboolean
