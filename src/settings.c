@@ -323,6 +323,15 @@ load_settings (SettingsManager *settings_manager,
                                                                                   new_value->value.v_color.green,
                                                                                   new_value->value.v_color.blue)));
           g_free (accent_color);
+
+          // casting from int to unsigned int is fine because valid values for reduced-motion are 0 and 1
+          unsigned int reduced_motion = g_key_file_get_integer (key_file, groups[i], "reduced-motion", NULL);
+          new_value = setting_value_new_uint ("org.freedesktop.appearance", "reduced-motion", reduced_motion);
+          if (settings_manager_set_key (settings_manager, new_value) && notify)
+            xdp_impl_settings_emit_setting_changed (XDP_IMPL_SETTINGS (settings_manager->helper),
+                                                    new_value->namespace,
+                                                    new_value->key,
+                                                    g_variant_new ("(v)", g_variant_new_uint32 (new_value->value.v_uint)));
         }
     }
 }
@@ -460,6 +469,14 @@ settings_handle_read (XdpImplSettings *object,
                                                                                v->value.v_color.red,
                                                                                v->value.v_color.green,
                                                                                v->value.v_color.blue)));
+          return TRUE;
+        }
+
+      if (strcmp (arg_key, "reduced-motion") == 0)
+        {
+          g_dbus_method_invocation_return_value (invocation,
+                                                 g_variant_new ("(v)",
+                                                                g_variant_new_uint32 (v->value.v_uint)));
           return TRUE;
         }
     }
