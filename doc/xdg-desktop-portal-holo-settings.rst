@@ -33,7 +33,7 @@ scope.
 
 The following keys must be part of the ``org.freedesktop.appearance`` group:
 
-* **color-scheme**: an integer with one of these three values:
+* **color-scheme**: an unsigned integer with one of these three values:
   * ``0``: no preference
   * ``1``: prefer dark appearance
   * ``2``: prefer light appearance
@@ -42,7 +42,7 @@ The following keys must be part of the ``org.freedesktop.appearance`` group:
   system's preferred   accent color; each value in the list must be between
   in the [0, 1] range.
 
-* **contrast**: an integer value indicating the constrast level; supported
+* **contrast**: an unsigned integer value indicating the constrast level; supported
   values are:
   * ``0``: no preference (normal contrast)
   * ``1``: higher contrast

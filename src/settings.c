@@ -1,6 +1,6 @@
 // settings.c: org.freedesktop.impl.portal.Settings
 //
-// SPDX-FileCopyrightText: 2024 Valve Corporation
+// SPDX-FileCopyrightText: 2024-2026 Valve Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "config.h"
@@ -28,6 +28,7 @@ typedef enum
 {
   SETTING_STRING_VALUE,
   SETTING_INT_VALUE,
+  SETTING_UINT_VALUE,
   SETTING_COLOR_VALUE
 } SettingValueType;
 
@@ -40,6 +41,7 @@ typedef struct
   union {
     char *v_str;
     int v_int;
+    unsigned int v_uint;
     struct {
       double red;
       double green;
@@ -58,6 +60,7 @@ typedef struct
 
 static SettingsManager *manager;
 
+#if 0
 static SettingValue *
 setting_value_new_int (const char *namespace,
                        const char *key,
@@ -69,6 +72,22 @@ setting_value_new_int (const char *namespace,
   v->namespace = g_strdup (namespace);
   v->key = g_strdup (key);
   v->value.v_int = value;
+
+  return v;
+}
+#endif
+
+static SettingValue *
+setting_value_new_uint (const char *namespace,
+                        const char *key,
+                        unsigned int value)
+{
+  SettingValue *v = g_new0 (SettingValue, 1);
+
+  v->value_type = SETTING_UINT_VALUE;
+  v->namespace = g_strdup (namespace);
+  v->key = g_strdup (key);
+  v->value.v_uint = value;
 
   return v;
 }
@@ -122,6 +141,7 @@ setting_value_free (gpointer data)
           break;
 
         case SETTING_INT_VALUE:
+        case SETTING_UINT_VALUE:
         case SETTING_COLOR_VALUE:
           break;
 
@@ -149,6 +169,10 @@ setting_value_to_gvariant (SettingValue *value)
 
     case SETTING_INT_VALUE:
       res = g_variant_new_int32 (value->value.v_int);
+      break;
+
+    case SETTING_UINT_VALUE:
+      res = g_variant_new_uint32 (value->value.v_uint);
       break;
 
     case SETTING_COLOR_VALUE:
@@ -268,21 +292,23 @@ load_settings (SettingsManager *settings_manager,
         {
           SettingValue *new_value;
 
-          int color_scheme = g_key_file_get_integer (key_file, groups[i], "color-scheme", NULL);
-          new_value = setting_value_new_int ("org.freedesktop.appearance", "color-scheme", color_scheme);
+          // casting from int to unsigned int is fine because valid values for color-scheme are 0, 1 and 2
+          unsigned int color_scheme = g_key_file_get_integer (key_file, groups[i], "color-scheme", NULL);
+          new_value = setting_value_new_uint ("org.freedesktop.appearance", "color-scheme", color_scheme);
           if (settings_manager_set_key (settings_manager, new_value) && notify)
             xdp_impl_settings_emit_setting_changed (XDP_IMPL_SETTINGS (settings_manager->helper),
                                                     new_value->namespace,
                                                     new_value->key,
-                                                    g_variant_new ("(v)", g_variant_new_int32 (new_value->value.v_int)));
+                                                    g_variant_new ("(v)", g_variant_new_uint32 (new_value->value.v_uint)));
 
-          int contrast = g_key_file_get_integer (key_file, groups[i], "contrast", NULL);
-          new_value = setting_value_new_int ("org.freedesktop.appearance", "contrast", contrast);
+          // casting from int to unsigned int is fine because valid values for contrast are 0 and 1
+          unsigned int contrast = g_key_file_get_integer (key_file, groups[i], "contrast", NULL);
+          new_value = setting_value_new_uint ("org.freedesktop.appearance", "contrast", contrast);
           if (settings_manager_set_key (settings_manager, new_value) && notify)
             xdp_impl_settings_emit_setting_changed (XDP_IMPL_SETTINGS (settings_manager->helper),
                                                     new_value->namespace,
                                                     new_value->key,
-                                                    g_variant_new ("(v)", g_variant_new_int32 (new_value->value.v_int)));
+                                                    g_variant_new ("(v)", g_variant_new_uint32 (new_value->value.v_uint)));
 
           gsize n_items = 0;
           double *accent_color = g_key_file_get_double_list (key_file, groups[i], "accent-color", &n_items, NULL);
@@ -414,7 +440,7 @@ settings_handle_read (XdpImplSettings *object,
         {
           g_dbus_method_invocation_return_value (invocation,
                                                  g_variant_new ("(v)",
-                                                                g_variant_new_int32 (v->value.v_int)));
+                                                                g_variant_new_uint32 (v->value.v_uint)));
           return TRUE;
         }
 
@@ -422,7 +448,7 @@ settings_handle_read (XdpImplSettings *object,
         {
           g_dbus_method_invocation_return_value (invocation,
                                                  g_variant_new ("(v)",
-                                                                g_variant_new_int32 (v->value.v_int)));
+                                                                g_variant_new_uint32 (v->value.v_uint)));
           return TRUE;
         }
 
@@ -464,7 +490,7 @@ settings_handle_read_all (XdpImplSettings *object,
 
   g_hash_table_iter_init (&ns_iter, self->keys);
   while (g_hash_table_iter_next (&ns_iter, NULL, (gpointer *) &ns))
-    {   
+    {
       GVariantDict dict;
 
       if (!namespace_matches (ns->namespace, arg_namespaces))
@@ -477,9 +503,9 @@ settings_handle_read_all (XdpImplSettings *object,
       g_hash_table_iter_init (&key_iter, ns->keys);
       while (g_hash_table_iter_next (&key_iter, NULL, (gpointer *) &value))
         g_variant_dict_insert_value (&dict, value->key, setting_value_to_gvariant (value));
-  
+
       g_variant_builder_add (builder, "{s@a{sv}}", ns->namespace, g_variant_dict_end (&dict));
-    }   
+    }
 
   g_variant_builder_close (builder);
 
